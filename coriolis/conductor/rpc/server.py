@@ -861,6 +861,13 @@ class ConductorServerEndpoint(object):
                 LOG.debug(
                     "No 'transfer_result' was returned for task type '%s' "
                     "for transfer action '%s'", task_type, execution.action_id)
+        elif task_type == constants.TASK_TYPE_UPDATE_REPLICA:
+            # perform the actual db update
+            db_api.update_replica(ctxt, execution.action_id, task_info)
+            # update volumes info
+            volumes_info = task_info.get("volumes_info")
+            if volumes_info:
+                updated_task_info = {"volumes_info": volumes_info}
 
         if updated_task_info:
             self._update_replica_volumes_info(
@@ -999,3 +1006,23 @@ class ConductorServerEndpoint(object):
         if not schedule:
             raise exception.NotFound("Schedule not found")
         return schedule
+
+    @replica_synchronized
+    def update_replica(
+        self, ctxt, replica_id, properties):
+        replica = self._get_replica(ctxt, replica_id)
+        self._check_replica_running_executions(ctxt, replica)
+        execution = models.TasksExecution()
+        execution.id = str(uuid.uuid4())
+        execution.status = constants.EXECUTION_STATUS_RUNNING
+        execution.action = replica
+
+        for instance in execution.action.instances:
+            replica.info[instance] = properties
+            self._create_task(
+                instance, constants.TASK_TYPE_UPDATE_REPLICA,
+                execution)
+        db_api.add_replica_tasks_execution(ctxt, execution)
+        LOG.info("Replica tasks execution created: %s", execution.id)
+        self._begin_tasks(ctxt, execution, replica.info)
+        return self.get_replica_tasks_execution(ctxt, replica_id, execution.id)

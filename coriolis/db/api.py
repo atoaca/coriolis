@@ -543,3 +543,14 @@ def add_task_progress_update(context, task_id, current_step, total_steps,
     task_progress_update.current_step = current_step
     task_progress_update.total_steps = total_steps
     task_progress_update.message = message
+
+
+@enginefacade.writer
+def update_replica(context, replica_id, updated_values):
+    replica = get_replica(context, replica_id)
+    if not replica:
+        raise exception.NotFound("Replica not found")
+    for n in ["source_environment", "destination_environment", "notes",
+              "network_map", "storage_mappings"]:
+        if n in updated_values:
+            setattr(replica, n, updated_values[n])

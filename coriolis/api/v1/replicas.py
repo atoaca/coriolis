@@ -108,6 +108,33 @@ class ReplicaController(api_wsgi.Controller):
         except exception.NotFound as ex:
             raise exc.HTTPNotFound(explanation=ex.msg)
 
+    def _validate_update_body(self, body):
+        try:
+            replica = body["replica"]
+            replica_keys = replica.keys()
+            if ('origin_endpoint_id' in replica_keys or
+                    'destination_endpoint_id' in replica_keys):
+                raise exc.HTTPBadRequest(
+                    explanation="Updating replica endpoints is not possible.")
+
+            return {k: replica[k] for k in replica_keys &
+                    {"name", "source_environment", "destination_environment",
+                     "storage_mappings", "network_map"}}
+        except Exception as ex:
+            LOG.exception(ex)
+            if hasattr(ex, "message"):
+                msg = ex.message
+            else:
+                msg = str(ex)
+            raise exception.InvalidInput(msg)
+
+    def update(self, req, id, body):
+        context = req.environ["coriolis.context"]
+        context.can(replica_policies.get_replicas_policy_label("update"))
+        updated_values = self._validate_update_body(body)
+        return replica_view.single(req, self._replica_api.update(
+            req.environ['coriolis.context'], id, updated_values))
+
 
 def create_resource():
     return api_wsgi.Resource(ReplicaController())
