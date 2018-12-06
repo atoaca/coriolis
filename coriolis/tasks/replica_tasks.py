@@ -435,14 +435,26 @@ class UpdateReplica(base.TaskRunner):
         destination_provider = None
         source_provider = None
         dest_volumes_info = {}
-        if task_info.get('source_environment'):
+        new_source_environment = task_info.get('source_environment')
+        new_destination_environment = task_info.get('destination_environment')
+
+        if new_source_environment:
             source_provider = providers_factory.get_provider(
                 origin["type"], constants.PROVIDER_TYPE_REPLICA_EXPORT,
                 event_handler)
-        if task_info.get('target_environment'):
+            source_environment_schema = (
+                source_provider.get_source_environment_schema())
+            schemas.validate_value(new_source_environment,
+                                   source_environment_schema)
+
+        if new_destination_environment:
             destination_provider = providers_factory.get_provider(
                 destination["type"], constants.PROVIDER_TYPE_REPLICA_IMPORT,
                 event_handler)
+            destination_environment_schema = (
+                destination_provider.get_target_environment_schema)
+            schemas.validate_value(new_destination_environment,
+                                   destination_environment_schema)
 
         connection_info = base.get_connection_info(ctxt, destination)
         export_info = task_info.get("export_info", {})
@@ -451,14 +463,12 @@ class UpdateReplica(base.TaskRunner):
         old_source_environment = origin.get('source_environment', {})
         new_source_environment = task_info.get('source_environment', {})
         if source_provider:
-            # check source_environment
             LOG.info("Checking source provider environment params")
             source_provider.check_update_environment_params(
                 ctxt, connection_info, export_info, volumes_info,
                 old_source_environment, new_source_environment)
 
         if destination_provider:
-            # check destination_environment against volumes_info
             LOG.info("Checking destination provider environment params")
             old_destination_environment = destination.get(
                 'target_environment', {})

@@ -118,7 +118,7 @@ class ReplicaController(api_wsgi.Controller):
                     explanation="Updating replica endpoints is not possible.")
 
             return {k: replica[k] for k in replica_keys &
-                    {"name", "source_environment", "destination_environment",
+                    {"source_environment", "destination_environment",
                      "storage_mappings", "network_map"}}
         except Exception as ex:
             LOG.exception(ex)
