@@ -554,3 +554,4 @@ def update_replica(context, replica_id, updated_values):
               "network_map", "storage_mappings"]:
         if n in updated_values:
             setattr(replica, n, updated_values[n])
+    setattr(replica, 'updated_at', func.now())
